@@ -1,0 +1,4 @@
+*secret*
+*.env
+*.conf
+part-*.yaml

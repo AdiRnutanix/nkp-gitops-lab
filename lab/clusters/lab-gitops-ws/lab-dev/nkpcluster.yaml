@@ -1,0 +1,173 @@
+apiVersion: clusters.nkp.nutanix.com/v1alpha1
+kind: NKPCluster
+metadata:
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+    konvoy.d2iq.io/cluster-name: lab-dev
+    konvoy.d2iq.io/provider: nutanix
+  name: lab-dev
+  namespace: lab-gitops-ws
+spec:
+  capiCluster:
+    clusterNetwork:
+      pods:
+        cidrBlocks:
+        - 192.168.0.0/16
+      services:
+        cidrBlocks:
+        - 10.96.0.0/12
+    topology:
+      classRef:
+        name: nkp-nutanix-v2.19.0
+      controlPlane:
+        replicas: 1
+      variables:
+      - name: clusterConfig
+        value:
+          addons:
+            ccm:
+              credentials:
+                secretRef:
+                  name: lab-dev-pc-credentials-for-ccm
+              strategy: HelmAddon
+            clusterAutoscaler:
+              strategy: HelmAddon
+            cni:
+              provider: Cilium
+              strategy: HelmAddon
+            cosi:
+              strategy: HelmAddon
+            csi:
+              defaultStorage:
+                provider: nutanix
+                storageClassConfig: volume
+              providers:
+                nutanix:
+                  credentials:
+                    secretRef:
+                      name: lab-dev-pc-credentials-for-csi
+                  storageClassConfigs:
+                    volume:
+                      allowExpansion: true
+                      parameters:
+                        csi.storage.k8s.io/fstype: ext4
+                        description: CSI StorageClass nutanix-volume for lab-dev
+                        flashMode: DISABLED
+                        hypervisorAttached: ENABLED
+                        storageContainer: nkp
+                        storageType: NutanixVolumes
+                      reclaimPolicy: Delete
+                      volumeBindingMode: WaitForFirstConsumer
+                  strategy: HelmAddon
+              snapshotController:
+                strategy: HelmAddon
+            konnectorAgent:
+              credentials:
+                secretRef:
+                  name: lab-dev-pc-credentials-for-konnector-agent
+              enableKubeconfigUpload: true
+            nfd:
+              strategy: HelmAddon
+            serviceLoadBalancer:
+              configuration:
+                addressRanges:
+                - end: 10.136.137.246
+                  start: 10.136.137.246
+              provider: MetalLB
+          controlPlane:
+            autoRenewCertificates:
+              daysBeforeExpiry: 180
+            nodeRegistration:
+              ignorePreflightErrors:
+              - SystemVerification
+            nutanix:
+              machineDetails:
+                bootType: uefi
+                cluster:
+                  name: Trigonometry
+                  type: name
+                image:
+                  name: nkp-rocky-9.8-release-cis-1.36.2-20261014035643.qcow2
+                  type: name
+                memorySize: 16Gi
+                project:
+                  name: nkp-rg-test
+                  type: name
+                subnets:
+                - name: VLAN-136-IPAM
+                  type: name
+                systemDiskSize: 80Gi
+                vcpuSockets: 4
+                vcpusPerSocket: 1
+          dns:
+            coreDNS: {}
+          encryptionAtRest:
+            providers:
+            - secretbox: {}
+          imageRegistries:
+          - credentials:
+              secretRef:
+                name: lab-dev-dockerhub-nutanix-credentials
+            url: https://registry-1.docker.io/nutanix
+          kubeProxy:
+            mode: disabled
+          ntp:
+            servers:
+            - pool.ntp.org
+            - time.google.com
+          nutanix:
+            controlPlaneEndpoint:
+              host: 10.136.137.245
+              port: 6443
+              virtualIP:
+                provider: KubeVIP
+            prismCentralEndpoint:
+              additionalTrustBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZvakNDQTRxZ0F3SUJBZ0lJTU10NHB4RGI2dGd3RFFZSktvWklodmNOQVFFTEJRQXdlREVMTUFrR0ExVUUKQmhNQ1NVNHhFakFRQmdOVkJBZ01DVXRoY201aGRHRnJZVEVTTUJBR0ExVUVCd3dKUW1GdVoyRnNiM0psTVJNdwpFUVlEVlFRS0RBcENURkpIVTA4Z1RHRmlNUTh3RFFZRFZRUUxEQVpNWVdJZ1EwRXhHekFaQmdOVkJBTU1Fa0pNClVrZFRUeUJNWVdJZ1VtOXZkQ0JEUVRBZUZ3MHlOakE1TURrd05qTTNORFZhRncweU56QTVNRGt3TmpNM05EVmEKTUdjeEN6QUpCZ05WQkFZVEFrbE9NUXN3Q1FZRFZRUUlEQUpMUVRFU01CQUdBMVVFQnd3SlFtVnVaMkZzZFhKMQpNUkF3RGdZRFZRUUtEQWRPZFhSaGJtbDRNUXd3Q2dZRFZRUUxEQU5EVDFNeEZ6QVZCZ05WQkFNTURuQmpkQzVpCmJISm5jMjh1YkdGaU1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdkV4U2hLRlAKZ3MzbC9TN0ZQSzliTElsMU9udWtRdjJDdUQzU3JaZENXM1Erd1FBc2QvY1dkbG1QaHJQZHE5ZkJOY2lCU0ovVQpNaWRQQjJmZllLTDhXbmoyNEtuV3FLU0tNYkNLblNHaVlYYnJHRkdqQnVBVTVQcXNrekcwTTE2UkR2a012K0k0CnJzVEdZSERXa0ZSTTRxZzdvVWFjNWF1TW13bEhid3VUZHI4dG9oY0ViQWlUL28zeUEwTHlIRWFGUGtEeFRxTDcKV2FsREx2ekdWbGk3M0UvRktZVndnUHBWMTVXcm51TzFtaGRNcTRUcUNWV292NzlGWXk1aEdmdUE1VWZ3OWpjWgp6bGwzT0tRNW1aL0tZL2Rkb1d3dEs5SUJCS0FBMTBGbzJsZnd0V1BNNTFRUDNQU0pscXo2UEVDWlZvTlRFQ1ZnCm1VbEwvVURVc0NneE5RSURBUUFCbzRJQlB6Q0NBVHN3Q1FZRFZSMFRCQUl3QURBUkJnbGdoa2dCaHZoQ0FRRUUKQkFNQ0JrQXdIUVlEVlIwT0JCWUVGSDNPdVRzSDM5YUUwRFo2bHlkK2dCVHEraFdHTUlHMUJnTlZIU01FZ2EwdwpnYXFBRkdxdmNMSXFHUnZuczg5djhxNWRsR05YVVRVRm9YeWtlakI0TVFzd0NRWURWUVFHRXdKSlRqRVNNQkFHCkExVUVDQXdKUzJGeWJtRjBZV3RoTVJJd0VBWURWUVFIREFsQ1lXNW5ZV3h2Y21VeEV6QVJCZ05WQkFvTUNrSk0KVWtkVFR5Qk1ZV0l4RHpBTkJnTlZCQXNNQmt4aFlpQkRRVEViTUJrR0ExVUVBd3dTUWt4U1IxTlBJRXhoWWlCUwpiMjkwSUVOQmdoUmx0bVMxU3dKbGNvdzNWRmJtTFZFR1pWYk1WakFPQmdOVkhROEJBZjhFQkFNQ0JhQXdFd1lEClZSMGxCQXd3Q2dZSUt3WUJCUVVIQXdFd0h3WURWUjBSQkJnd0ZvSU9jR04wTG1Kc2NtZHpieTVzWVdLSEJBcUkKaUFnd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dJQkFLVXZHbkEwRjczVXE0c3ZUN09ObFNyN0dhZ2l5TnhDUDFYMwpram9HdlFGQXozMXMyWkhLZHZsVFhyMnpXdVRtOHdmYVdxNjdWb2lUNHdSaFNkUy9kUVZ1cjRabkRzMkJ2YUpvCklJUnR2WDRXcjBtNjlUZU1jeE5mUmlCK2ZVdGluWmEwZ2QyamltSStqV0RLQW1KNjJSRmFJR2VLSFpXQmdybDUKT1RadnFRSzI4VXBPUW9yaEgwTGdscFFQNGdzOE81VzRQaFRxSlFQMmVnYUdLWGRhaVB4SkpBS0s5eG12RWZHWQpWWFhTMWZLS05PSkZYS04yNjJOaWFSTkUxcCthaU1aY2NRT213NG5FTXpFUzdrYkFWLzI5aHdZajdoUzRYQTcvCnZVeXBxRG1oYlhEeG13aStPZFE3VTFtd016dXc0a25zZXVQMlUvV0V2Vi9rcGs5aXdLTGtybXRaOGhGSy85TnQKQjJwOHNkbVdiUytZL0dSSllmZGJMY29tRVl3dU5SVkIrRkVwU01UYmYvMzF2SWhQenEwdjJidkJINEhmMVpMVQpzNXZkRGNPV0tYTEx4VUpYRFhxeC9wZWhGdE1VWlJXZERYWU90TVRXUzRQY25ERVdLUGNkdVJIOVNveEdZV1FXCngwd0kwZWxmK3F5MUgyNkFHa3k2RlhSY3hqZ0RPTFpnRmRSOWpNaXJtKzY1dlp6ZXdldDZILzhUSkJhZ3ZCdGMKbHhpZnBGNVlORWFmZis2QjJHVEppR1NGMkxtWXJTelc3c3psbVI2YmxkaGNqb1gwRXowUCsyTTc3UGhRZ2FYZApYUXRPTVlpZUo5dWU2eFA3R3BTK1pEYnlUZE42dmY1MXZCbDNaRlRDc3VhUG4zV3ZNaEJydUhpenQ3b1ZBN1RtCk1FMFZicjVpCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+              credentials:
+                secretRef:
+                  name: lab-dev-pc-credentials
+              url: https://10.136.136.8:9440
+          users:
+          - name: konvoy
+            sshAuthorizedKeys:
+            - |
+              ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCdFKD6xOwqZv0dEtgLbK6UIzSGz+oye8iuPq7Whzu//YxGaOiYt8LSkbjnwkZ+jlWvLw2lg0Oi6B7spGLHycMeWsQgOfeesSQFTxZotI6iePDEX76d9VCl7xo8Ah1wpYgbH3ywdJWLeVi8hUwuxmLTvzfcvVm1TBhBGiNldJK6zh3Lu7g/LBgsMK5Z8PdDkFJNL74TrZZKzFO/XEd+kBnaJOzolrptRPckdemDzEjbFobxngrlgoOBcAFETHGX8gnhegJrw8/jKEzBmd0WOP1lA43fN9IbVTqtteVroG1EcjU3Oj/UZXUcKI6c4XB/5x324nBa7upW55QIlEr1g1473zHwnPl5wpkwevvdK4vsYjVWkxrybK28hWGA8Rp8pVvHLQO1zlNpxtboBxpQT7doy23GKqV5P43MRhr+GbOT8+4Sx1uNBOf/1RJw9MbRq+7lPd5tRcou4XdNAQ8h3RPY7hfbnAV5Q62XFKE766sGeKHIaZI9JYxuaMx1RFljVPc=
+            sudo: ALL=(ALL) NOPASSWD:ALL
+      version: v1.36.2
+      workers:
+        machineDeployments:
+        - class: default-worker
+          metadata:
+            annotations:
+              cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: "1"
+              cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: "1"
+          name: md-0
+          variables:
+            overrides:
+            - name: workerConfig
+              value:
+                nodeRegistration:
+                  ignorePreflightErrors:
+                  - SystemVerification
+                nutanix:
+                  machineDetails:
+                    bootType: uefi
+                    cluster:
+                      name: Trigonometry
+                      type: name
+                    image:
+                      name: nkp-rocky-9.8-release-cis-1.36.2-20261014035643.qcow2
+                      type: name
+                    memorySize: 16Gi
+                    project:
+                      name: nkp-rg-test
+                      type: name
+                    subnets:
+                    - name: VLAN-136-IPAM
+                      type: name
+                    systemDiskSize: 80Gi
+                    vcpuSockets: 4
+                    vcpusPerSocket: 1
+  version: v2.19.0
